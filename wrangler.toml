@@ -3,15 +3,13 @@ main = "src/index.js"
 compatibility_date = "2026-07-01"
 workers_dev = true
 
-[[d1_databases]]
-binding = "DB"
-database_name = "surge-config-merge"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
-migrations_dir = "migrations"
+[[durable_objects.bindings]]
+name = "APP_STATE"
+class_name = "AppState"
 
-[[kv_namespaces]]
-binding = "CONFIG_STORE"
-id = "a8551fd8a7e1402f874a2c744118b844"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AppState"]
 
 [triggers]
 crons = ["*/30 * * * *"]

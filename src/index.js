@@ -1,2 +1,20 @@
-import{route}from'./router.js';import{listProfiles}from'./repositories/repository.js';import{checkAndMerge}from'./services/profile-service.js';
-export default{async fetch(r,e){try{return await route(r,e)}catch{return new Response(JSON.stringify({ok:false,error:{code:'INTERNAL_ERROR',message:'服务器内部错误'}}),{status:500,headers:{'content-type':'application/json'}})}},async scheduled(_event,e,ctx){ctx.waitUntil((async()=>{for(const p of await listProfiles(e)){if(!p.enabled)continue;try{await checkAndMerge(p.id,e)}catch(x){await e.DB.prepare('INSERT INTO merge_logs(profile_id,level,message,details,created_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP)').bind(p.id,'error','定时更新失败',JSON.stringify({message:x.message})).run()}}})())}};
+export { AppState } from './durable-state.js';
+
+function appStub(env) {
+  const id = env.APP_STATE.idFromName('global');
+  return env.APP_STATE.get(id);
+}
+
+export default {
+  async fetch(request, env) {
+    return appStub(env).fetch(request);
+  },
+
+  async scheduled(_event, env, ctx) {
+    const request = new Request('https://internal.invalid/__internal/cron', {
+      method: 'POST',
+      headers: { 'x-internal-cron': '1' }
+    });
+    ctx.waitUntil(appStub(env).fetch(request));
+  }
+};
