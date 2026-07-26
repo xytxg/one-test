@@ -1,32 +1,10 @@
 import { ok, error, securityHeaders } from './utils/responses.js';
 import { requireJson } from './security.js';
-import { setupAuth, verifyPassword, createSession, getSession, destroySession, clearCookie } from './auth.js';
 import { listProfiles, upsertProfile, getProfile } from './repositories/repository.js';
 import { validateConfig } from './merge/validators.js';
 import { checkAndMerge, k } from './services/profile-service.js';
 import { appHtml } from './pages/app.js';
 import { sha256 } from './utils/crypto.js';
-
-const DEFAULT_PASSWORD = '11111111';
-
-async function guard(request, env, csrf = false) {
-  const session = await getSession(request, env);
-  if (!session) return { response: error('未登录', 401) };
-  if (csrf && request.headers.get('x-csrf-token') !== session.csrf) {
-    return { response: error('CSRF 校验失败', 403) };
-  }
-  return { session };
-}
-
-function sessionResponse(session) {
-  return new Response(JSON.stringify({ ok: true, session: { csrf: session.csrf } }), {
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'set-cookie': session.cookie,
-      ...securityHeaders()
-    }
-  });
-}
 
 export async function route(request, env) {
   const url = new URL(request.url);
@@ -39,67 +17,6 @@ export async function route(request, env) {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store'
       })
-    });
-  }
-
-  if (path === '/api/auth/setup' && method === 'POST') {
-    const body = await requireJson(request);
-    if (body.response) return body.response;
-    if (await env.DB.prepare("SELECT value FROM settings WHERE key='auth'").first()) {
-      return error('系统已初始化', 409);
-    }
-    if ((body.data.password || '').length < 8) return error('密码至少 8 位');
-    await setupAuth(env, body.data.password);
-    return sessionResponse(await createSession(env));
-  }
-
-  if (path === '/api/auth/login' && method === 'POST') {
-    const body = await requireJson(request);
-    if (body.response) return body.response;
-    const password = body.data.password || '';
-    const authExists = await env.DB.prepare("SELECT value FROM settings WHERE key='auth'").first();
-
-    // 新部署首次登录：使用默认密码自动初始化，不再弹出无效确认框。
-    if (!authExists) {
-      if (password !== DEFAULT_PASSWORD) return error('首次登录默认密码为 11111111', 401);
-      await setupAuth(env, DEFAULT_PASSWORD);
-      return sessionResponse(await createSession(env));
-    }
-
-    if (!await verifyPassword(env, password)) return error('密码错误', 401);
-    return sessionResponse(await createSession(env));
-  }
-
-  if (path === '/api/auth/session' && method === 'GET') {
-    const session = await getSession(request, env);
-    return ok({ session: session ? { csrf: session.csrf } : null });
-  }
-
-  if (path === '/api/auth/logout' && method === 'POST') {
-    await destroySession(request, env);
-    return new Response('{"ok":true}', {
-      headers: { 'content-type': 'application/json', 'set-cookie': clearCookie() }
-    });
-  }
-
-  if (path === '/api/auth/password' && method === 'PUT') {
-    const access = await guard(request, env, true);
-    if (access.response) return access.response;
-    const body = await requireJson(request);
-    if (body.response) return body.response;
-    const currentPassword = body.data.currentPassword || '';
-    const newPassword = body.data.newPassword || '';
-    if (!await verifyPassword(env, currentPassword)) return error('当前密码错误', 401);
-    if (newPassword.length < 8) return error('新密码至少 8 位', 400);
-    if (currentPassword === newPassword) return error('新密码不能与当前密码相同', 400);
-    await setupAuth(env, newPassword);
-    await destroySession(request, env);
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'set-cookie': clearCookie(),
-        ...securityHeaders()
-      }
     });
   }
 
@@ -126,9 +43,6 @@ export async function route(request, env) {
       }
     });
   }
-
-  const access = await guard(request, env, !['GET', 'HEAD'].includes(method));
-  if (access.response) return access.response;
 
   if (path === '/api/dashboard') {
     const [a, b, c, d] = await Promise.all([
