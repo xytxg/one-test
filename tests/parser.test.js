@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';import{parseSurge,serializeSurge}from'../src/parser/surge-parser.js';test('解析并保留注释空行和未知段',()=>{const s='# head\n\n[Proxy]\nA = direct\n\n[Unknown]\nfoo',d=parseSurge(s);assert.equal(d.sections[1].name,'Unknown');assert.match(serializeSurge(d),/# head/);assert.match(serializeSurge(d),/\[Unknown\]/)});

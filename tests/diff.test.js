@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';import{diffConfigs}from'../src/merge/diff.js';test('检测新增修改删除',()=>{const d=diffConfigs('[Proxy]\nA = direct\nB = direct\n','[Proxy]\nA = reject\nC = direct\n');assert.equal(d.summary.added,1);assert.equal(d.summary.modified,1);assert.equal(d.summary.deleted,1)});

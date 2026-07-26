@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';import{validateUpstreamUrl}from'../src/security.js';test('阻止 SSRF 内网地址',()=>{assert.equal(validateUpstreamUrl('http://127.0.0.1/a').ok,false);assert.equal(validateUpstreamUrl('https://example.com/a').ok,true)});

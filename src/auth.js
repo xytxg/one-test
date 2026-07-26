@@ -1,0 +1,7 @@
+import{derivePassword,randomToken,timingSafeEqual}from'./utils/crypto.js';import{settingGet,settingSet}from'./repositories/repository.js';const name='scm_session';
+export async function setupAuth(env,password){const salt=randomToken(16),iterations=Number(env.PBKDF2_ITERATIONS||210000),hash=await derivePassword(password,salt,iterations);await settingSet(env.DB,'auth',JSON.stringify({salt,hash,iterations}))}
+export async function verifyPassword(env,password){const raw=await settingGet(env.DB,'auth');if(!raw)return false;const a=JSON.parse(raw),hash=await derivePassword(password,a.salt,a.iterations);return timingSafeEqual(hash,a.hash)}
+export async function createSession(env){const token=randomToken(32),csrf=randomToken(24),ttl=Number(env.SESSION_TTL_SECONDS||604800);await env.CONFIG_STORE.put(`session:${token}`,JSON.stringify({csrf,createdAt:Date.now()}),{expirationTtl:ttl});return{token,csrf,cookie:`${name}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${ttl}`}}
+export async function getSession(r,env){const m=(r.headers.get('cookie')||'').match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));if(!m)return null;const raw=await env.CONFIG_STORE.get(`session:${m[1]}`);return raw?{token:m[1],...JSON.parse(raw)}:null}
+export async function destroySession(r,env){const s=await getSession(r,env);if(s)await env.CONFIG_STORE.delete(`session:${s.token}`)}
+export const clearCookie=()=>`${name}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;

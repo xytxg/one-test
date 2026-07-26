@@ -1,0 +1,24 @@
+name = "surge-config-merge"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "surge-config-merge"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "CONFIG_STORE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[vars]
+APP_NAME = "Surge Config Merge"
+SESSION_TTL_SECONDS = "604800"
+MAX_PROFILE_BYTES = "2097152"
+UPSTREAM_TIMEOUT_MS = "15000"
+PBKDF2_ITERATIONS = "210000"

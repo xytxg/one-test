@@ -1,0 +1,4 @@
+export const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});
+export const error=(message,status=400,code='BAD_REQUEST',details=null)=>json({ok:false,error:{code,message,details}},status);
+export const ok=(data={})=>json({ok:true,...data});
+export function securityHeaders(extra={}){return {'content-security-policy':"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'",'x-content-type-options':'nosniff','referrer-policy':'no-referrer','permissions-policy':'camera=(), microphone=(), geolocation=()','strict-transport-security':'max-age=31536000; includeSubDomains','cross-origin-opener-policy':'same-origin',...extra}}

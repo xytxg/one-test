@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY,name TEXT NOT NULL,upstream_url TEXT NOT NULL,access_token TEXT,merge_policy TEXT NOT NULL DEFAULT '{}',enabled INTEGER NOT NULL DEFAULT 1,interval_minutes INTEGER NOT NULL DEFAULT 30,current_version_id TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS versions (id TEXT PRIMARY KEY,profile_id TEXT NOT NULL,remote_hash TEXT,local_hash TEXT,merged_hash TEXT,added_count INTEGER DEFAULT 0,modified_count INTEGER DEFAULT 0,deleted_count INTEGER DEFAULT 0,conflict_count INTEGER DEFAULT 0,status TEXT NOT NULL,error_message TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS conflicts (id TEXT PRIMARY KEY,version_id TEXT NOT NULL,section TEXT,item_key TEXT,previous_value TEXT,remote_value TEXT,local_value TEXT,resolution TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,resolved_at TEXT);
+CREATE TABLE IF NOT EXISTS merge_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT,level TEXT NOT NULL,message TEXT NOT NULL,details TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,ip_hash TEXT,user_agent TEXT,details TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_versions_profile ON versions(profile_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conflicts_version ON conflicts(version_id);

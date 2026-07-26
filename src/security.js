@@ -1,0 +1,5 @@
+import{error}from'./utils/responses.js';
+const blocked=['localhost','metadata.google.internal','100.100.100.200'];
+function private4(h){const p=h.split('.').map(Number);if(p.length!==4||p.some(Number.isNaN))return false;return p[0]===10||p[0]===127||p[0]===0||(p[0]===169&&p[1]===254)||(p[0]===192&&p[1]===168)||(p[0]===172&&p[1]>=16&&p[1]<=31)}
+export function validateUpstreamUrl(v){let u;try{u=new URL(v)}catch{return{ok:false,message:'远程 URL 格式无效'}}if(!['http:','https:'].includes(u.protocol))return{ok:false,message:'仅允许 HTTP/HTTPS'};const h=u.hostname.toLowerCase();if(blocked.includes(h)||private4(h)||h==='::1'||h.startsWith('fc')||h.startsWith('fd')||h.startsWith('fe80'))return{ok:false,message:'禁止访问本地或内网地址'};return{ok:true,url:u}}
+export async function requireJson(r,max=2097152){if(!r.headers.get('content-type')?.includes('application/json'))return{response:error('Content-Type 必须为 application/json',415)};if(Number(r.headers.get('content-length')||0)>max)return{response:error('请求体过大',413)};try{return{data:await r.json()}}catch{return{response:error('JSON 格式错误',400)}}}
