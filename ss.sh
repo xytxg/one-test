@@ -16,7 +16,6 @@ fail() { say "[ERROR] $*" >&2; exit 1; }
 
 [ "$(id -u)" = "0" ] || fail "请使用 root 用户运行"
 [ -f /etc/alpine-release ] || fail "此脚本仅适用于 Alpine Linux"
-
 case "$PORT" in ''|*[!0-9]*) fail "PORT 必须是数字" ;; esac
 [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ] || fail "PORT 必须是 1-65535"
 
@@ -102,29 +101,49 @@ if [ -n "$IPV6" ]; then
   USERINFO="$(printf '%s' "${METHOD}:${PASSWORD}" | base64 | tr -d '\n')"
   URI="ss://${USERINFO}@[${IPV6}]:${PORT}#KP-SS"
   cat > "$CLIENT_FILE" <<EOF
-服务器: ${IPV6}
-端口: ${PORT}
-加密: ${METHOD}
-密码: ${PASSWORD}
-UDP: true
+===== BEGIN Shadowsocks =====
+=============== 明文参数 ===============
+节点类型  : Shadowsocks
+服务器IP  : ${IPV6}
+监听端口  : ${PORT}
+加密方法  : ${METHOD}
+密码      : ${PASSWORD}
+TCP/UDP   : 开启
 
+=============== 通用分享链接 ===============
 ${URI}
 
-Surge:
+=============== Sub-Store ===============
+KP-SS = Shadowsocks,${IPV6},${PORT},${METHOD},"${PASSWORD}",udp=true,fast-open=false
+
+=============== Surge ===============
 KP-SS = ss, ${IPV6}, ${PORT}, encrypt-method=${METHOD}, password=${PASSWORD}, udp-relay=true
 
-Clash/Mihomo:
-- name: KP-SS
-  type: ss
-  server: ${IPV6}
-  port: ${PORT}
-  cipher: ${METHOD}
-  password: "${PASSWORD}"
-  udp: true
+=============== Clash Meta / Mihomo ===============
+  - name: KP-SS
+    type: ss
+    server: ${IPV6}
+    port: ${PORT}
+    cipher: ${METHOD}
+    password: "${PASSWORD}"
+    udp: true
+
+=============== Sing-box Outbound ===============
+{
+  "type": "shadowsocks",
+  "tag": "KP-SS",
+  "server": "${IPV6}",
+  "server_port": ${PORT},
+  "method": "${METHOD}",
+  "password": "${PASSWORD}"
+}
+================================================================
+===== END Shadowsocks =====
 EOF
+  cat "$CLIENT_FILE"
   say ""
-  say "分享链接："
-  say "$URI"
-  say ""
-  say "配置文件：$CLIENT_FILE"
+  say "配置永久保存：${CLIENT_FILE}"
+else
+  say "未自动获取公网 IPv6。重新运行时可指定："
+  say "SERVER_IPV6='你的LazyCat公网IPv6' wget -qO- https://raw.githubusercontent.com/xytxg/one-test/main/ss.sh | sh"
 fi
