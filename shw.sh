@@ -28,10 +28,27 @@ nslookup raw.githubusercontent.com >/dev/null 2>&1 || fail "DNS 仍无法解析 
 say "[bootstrap] 安装原脚本依赖与 sing-box..."
 apk update
 apk add --no-cache bash curl ca-certificates iproute2 openssl sing-box >/dev/null
+
+# 如果之前手动删过 /usr/bin/sing-box，apk 数据库仍会认为 sing-box 已安装，
+# 单纯 apk add 不会把缺失文件恢复。此时用 apk fix 强制修复包文件。
+if ! command -v sing-box >/dev/null 2>&1; then
+  say "[bootstrap] 检测到 sing-box 包存在但二进制缺失，正在修复..."
+  apk fix sing-box >/dev/null 2>&1 || true
+fi
+
+# 某些镜像源/缓存异常时再强制重装一次。
+if ! command -v sing-box >/dev/null 2>&1; then
+  apk del sing-box >/dev/null 2>&1 || true
+  apk add --no-cache sing-box >/dev/null
+fi
+
 update-ca-certificates >/dev/null 2>&1 || true
 command -v bash >/dev/null 2>&1 || fail "bash 安装失败"
 command -v curl >/dev/null 2>&1 || fail "curl 安装失败"
-command -v sing-box >/dev/null 2>&1 || fail "sing-box 安装失败"
+command -v sing-box >/dev/null 2>&1 || fail "sing-box 二进制仍不存在，请执行: apk fix sing-box"
+
+say "[bootstrap] sing-box: $(command -v sing-box)"
+sing-box version 2>/dev/null | head -n1 || true
 
 say "[bootstrap] 下载 cuteys 原版 Sing-Box 脚本..."
 rm -f "$TMP_SCRIPT"
@@ -39,20 +56,17 @@ curl -6 -fL --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 120 "$UPST
 [ -s "$TMP_SCRIPT" ] || fail "原版 singbox.sh 下载失败"
 
 # 仅修正 Alpine + IPv6-only 兼容问题，菜单与输出格式继续沿用原版。
-# IPv4 DNS -> IPv6 DNS
 sed -i \
   -e 's/"server": "1\.1\.1\.1"/"server": "2606:4700:4700::1111"/g' \
   -e 's/"server": "8\.8\.8\.8"/"server": "2001:4860:4860::8888"/g' \
   "$TMP_SCRIPT"
 
-# IPv4 公网 IP 兜底 -> IPv6
 sed -i \
   's#host_ip=$(curl -4 -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null | tr -d '\''\\r\\n'\'')#host_ip=$(curl -6 -s --max-time 8 https://api6.ipify.org 2>/dev/null | tr -d '\''\\r\\n'\'')#' \
   "$TMP_SCRIPT" || true
 
-# cuteys 原版使用 `sing-box generate rand 16 --base64` 生成 Shadowsocks 2022 密码。
-# 当前 Alpine sing-box 版本下该命令可能返回空值，导致 Sub-Store 出现 password=""。
-# 2022-blake3-aes-128-gcm 需要 16-byte PSK，直接用 openssl 生成合法 base64 密码。
+# 修复 Alpine 当前 sing-box 版本下 `sing-box generate rand 16 --base64`
+# 可能返回空值，导致 ShadowTLS 的 Shadowsocks 2022 密码为空。
 sed -i \
   's#ss_password=$(sing-box generate rand 16 --base64)#ss_password=$(openssl rand -base64 16 | tr -d '\''\\r\\n'\'')#g' \
   "$TMP_SCRIPT"
@@ -62,7 +76,7 @@ chmod 700 "$TMP_SCRIPT"
 say ""
 say "============================================================"
 say "以下进入 cuteys/ProxyResource 原版 Sing-Box 菜单"
-say "已适配 Alpine + IPv6-only，并修复 ShadowTLS 的 SS 2022 空密码问题"
+say "已适配 Alpine + IPv6-only，并修复 sing-box 丢失与 ShadowTLS 空密码问题"
 say "============================================================"
 say ""
 
